@@ -1,87 +1,76 @@
 # Invocation Commands
 
-All user-facing commands start with the skill name so Claude routes correctly.
+> **Out-of-routine commands only.** Routines fire by cron with a baked prompt and never parse user messages. The commands below are for an operator running this skill manually in a Claude.ai session — typically for catch-up runs after a missed schedule, or to validate setup.
+
+## When you'd use these commands
+
+- A scheduled routine missed its fire window (Claude Routines outage, infra hiccup, model maintenance).
+- The PM wants an ad-hoc morning read after returning from leave, before tomorrow's regular fire.
+- The operator is validating a fresh setup before the first scheduled fire — a dry run to confirm Preferences and the setup checklist are wired correctly.
+- The PM flipped the `Ready for Execution` toggle after the Mode 2 cron already passed and wants execution to proceed today rather than waiting until tomorrow.
+
+In all four cases the operator opens a regular Claude.ai chat session with the skill loaded and types one of the commands below. Routines never use this path.
 
 ## The commands
 
 ### `PM Task Assignment, run morning`
 
-Manually fires Mode 1 (morning collection). Use when:
-- The scheduled morning run didn't fire
-- The PM wants an ad-hoc morning read (e.g., coming back from leave, or it's mid-day and they want to re-collect)
+Manually fires Mode 1 (morning collection) for today.
 
-Loads: `modes/mode-1-morning-collection.md`
+Loads: `preflight.md`, then `modes/mode-1-morning-collection.md`.
 
 Behavior:
-- Read Preferences. If not found, route to `first-run-setup.md` instead.
-- If today's dated page already exists, confirm with the PM before overwriting: "You already have a morning queue for today. Overwrite or skip?"
-- Otherwise, run the full Mode 1 flow.
+- Run preflight against the Preferences page. Abort on any failure exactly as a routine would.
+- If today's dated page already exists on the parent, ask the operator: "A morning queue for today already exists. Overwrite or skip?" (this is the only place a manual run pauses for input — routines never reach this branch because they fire before the page exists.)
+- Otherwise run Mode 1 end-to-end and write the dated page.
 
 ### `PM Task Assignment, run execution now`
 
-Manually fires Mode 2 (execution). Use when:
-- The PM flipped the Ready toggle after the scheduled Mode 2 time passed
-- The scheduled run didn't fire
-- The PM wants to execute early
+Manually fires Mode 2 (execution) for today.
 
-Loads: `modes/mode-2-execution.md`
+Loads: `preflight.md`, then `modes/mode-2-execution.md`.
 
 Behavior:
-- Read Preferences.
-- Read today's dated page.
-- Check the Ready toggle.
-- If ON: execute approved rows + rows with notes. Slack the PM the summary.
-- If OFF: confirm with the PM — "The Ready toggle is still off. Flip it and I'll continue, or say 'cancel'."
+- Run preflight. Abort on failure.
+- Read today's dated page. If it doesn't exist, abort with "no morning queue for today — run morning first."
+- Check the `Ready for Execution` toggle. If ON, execute approved rows + rows with notes and Slack the PM the summary. If OFF, ask the operator: "Ready toggle is off. Flip it now and reply `go`, or reply `cancel`."
 
-### `PM Task Assignment, change my preference: [instruction]`
+### `PM Task Assignment, validate setup`
 
-Edits Preferences only. Does not fire any morning flow.
+Read-only setup check. Does not write anywhere.
 
-Loads: Preferences page via `schemas/preferences-page.md`.
+Loads: `preflight.md` only.
 
 Behavior:
-- Parse the instruction (free-form natural language).
-- Confirm back to the PM what you're about to change: "You want me to change [X] to [Y]. Sound right?"
-- On confirmation, update the Preferences sub-page.
-- If the change affects the scheduled tasks (e.g., "change my morning run to 10:00 AM"), update the registered scheduled-task via `mcp__scheduled-tasks__update_scheduled_task`.
+- Run preflight against the Preferences page.
+- Report each validation rule with a pass/fail line — checklist boxes, required fields, time formats, escalation-not-self, canonical email domain, AM rows, schema parseability.
+- Print a final `READY` or `NOT READY: <reasons>`.
+- Do not write a Run Log entry, do not touch the dated page, do not fire any mode.
 
-Examples:
+Use this immediately after deploying a new PM, before the first scheduled fire, to confirm the Notion side is wired.
 
-- `PM Task Assignment, change my preference: run morning at 10:00 AM instead of 9:30`
-- `PM Task Assignment, change my preference: always CC Nishant on emails to leadership`
-- `PM Task Assignment, change my preference: my escalation backup is Hiten now, Slack him at 11:30 AM`
-- `PM Task Assignment, change my preference: add a rule to always link the related Orbit task when I reassign work`
+## Removed from v1
 
-### `PM Task Assignment, update tone samples`
+These were in earlier drafts and have been **removed**:
 
-Adds or replaces tone calibration samples used by the plain-language writer.
+- `PM Task Assignment, change my preference: ...` — preferences are now edited directly in Notion on the Preferences page. The next routine fire picks up the change. No chat command needed.
+- `PM Task Assignment, update tone samples` — tone samples are pasted directly into the `Tone Samples` toggle block on the Preferences page. The next routine fire reads them. No chat command needed.
 
-Loads: `writers/plain-language.md` (for context) and Preferences page (for storage).
-
-Behavior:
-- Ask: "Paste 3 to 5 real Slack messages or emails you've recently sent to your team. I'll use them to match your tone."
-- Confirm sample count and replace or append (PM picks).
-- Update the Tone Samples section of Preferences.
+If an operator types either of these, respond: "That command was removed in v1 — edit the Preferences page in Notion directly. Changes apply on the next routine fire."
 
 ## Routing rules
 
-When Claude receives a user message, check for these routing conditions in order:
+For manual-session routing only:
 
-1. Does the message start with `PM Task Assignment,` followed by one of the known command phrases? → route directly.
-2. Is Claude being invoked by a scheduled-tasks trigger that registered with this skill? → route to the appropriate mode based on the scheduled task's metadata.
-3. Does the message match intent patterns like "run my morning queue", "generate today's assignments", "handle my actions"? → ask: "Did you mean `PM Task Assignment, run morning` or `PM Task Assignment, run execution now`? I'll run whichever you confirm."
-4. Does the message mention preferences, setup, or first run? → route to `first-run-setup.md` if Preferences doesn't exist, otherwise route to the `change my preference` flow and ask what they want to change.
+1. Match the skill name `PM Task Assignment` followed by an action verb (`run morning`, `run execution now`, `validate setup`) anywhere in the user message. Be lenient: case-insensitive, the comma is optional, extra whitespace is fine.
+2. On match, route to the corresponding mode/preflight file as listed above.
+3. If the message mentions the skill name but doesn't match a known command, list the three valid commands and ask which one the operator wants.
+4. If the message doesn't mention the skill name at all, do not auto-fire anything — answer conversationally.
 
-## Command phrases that are NOT in v1 (but on the roadmap)
+## What routines do instead
 
-These were deferred to post-pilot:
+Routines fire on cron from the Claude Routines runner. Each routine has a baked prompt that loads this skill from the public GitHub repo and directly invokes its assigned mode file (`modes/mode-1-morning-collection.md`, `modes/mode-2-execution.md`, or `modes/monthly-archival.md`) after preflight passes. Routines do not read the routing tables in this file, do not parse user messages, and never reach the interactive branches above. The full per-routine prompt structure lives in `ROUTINE-ENTRYPOINTS.md`.
 
-- `PM Task Assignment, handle my actions` — alternate Mode 2 trigger phrase (future muscle-memory option)
-- `PM Task Assignment, approve all` — bulk-approve all Recommended Action rows at once
-- `PM Task Assignment, skip tomorrow` — planned-leave skip, disables next day's run
+---
 
-If a PM types one of these in v1, respond: "That command isn't in v1 — it's on the roadmap. For now, [here's the workaround]."
-
-## Non-command mentions
-
-If a PM mentions the skill casually ("how's the PM Task Assignment skill going?" or "what does the skill do?") without an action verb, answer conversationally. Don't auto-fire anything. Ask what they want: "Looking for the morning run? Execution? A preference change? Or just info?"
+> **If invoked from a routine context, ignore the routing tables here — the routine prompt directly invokes the appropriate mode file.**

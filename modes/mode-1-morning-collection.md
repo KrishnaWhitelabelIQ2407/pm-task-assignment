@@ -1,17 +1,17 @@
-> **MANDATORY: `preflight.md` must run before any logic in this file. Do not call any tool, do not act on user input, until preflight has completed successfully. This includes scheduled-task triggers — preflight runs even when invoked by the scheduler.**
+> **MANDATORY: `preflight.md` must run before any logic in this file. Do not call any tool, do not act on user input, until preflight has completed successfully. This includes routine triggers — preflight runs even when invoked by a scheduled cloud routine.**
 
-> **Source allowlist (closed):** Orbit, Gmail, Slack, Fathom, Notion, scheduled-tasks. No other MCP, ever — including any that may seem relevant to a specific signal. The allowlist is enforced even under experimental scope or forced runs.
+> **Source allowlist (closed):** Orbit, Gmail, Slack, Fathom, Notion. No other MCP, ever — including any that may seem relevant to a specific signal. The allowlist is enforced even under experimental scope or forced runs.
 
 # Mode 1 — Morning Collection Run
 
 ## When this runs
 
-- Scheduled: daily at the PM's configured morning time (default 9:30 AM IST).
+- Scheduled: daily at the PM's configured morning time (default 9:30 AM IST), fired by a Claude Routine.
 - Manual: `PM Task Assignment, run morning`.
 
 ## Zero PM input during this run
 
-Mode 1 never asks questions. Never blocks waiting for input. If something is uncertain, it becomes its own row with an `Uncertain:` note in AI Notes. The PM resolves it when they review.
+Mode 1 never asks questions. Never blocks waiting for input. Never confirms with the PM. Routines fire unattended — there is no human in the loop at fire time. If something is uncertain, it becomes its own row with an `Uncertain:` note in AI Notes. The PM resolves it when they review.
 
 ## End-to-end flow
 
@@ -64,7 +64,7 @@ Feed all collected signals into `synthesis/matcher.md`. The matcher:
 Call `writers/notion.md` to:
 1. Archive last month's dated pages if today is the 1st (route to `modes/monthly-archival.md` first, then return)
 2. Ensure `Preferences` sub-page is positioned at the very bottom of the parent
-3. Create today's dated sub-page at the TOP of the parent, titled `[DD Month YYYY]` (e.g., `25 April 2026`)
+3. Create today's dated sub-page at the TOP of the parent, titled `[DD Month YYYY]` (e.g., `25 April 2026`). **If a page with today's date already exists, do NOT overwrite and do NOT prompt.** Append a numeric rerun suffix and create a new page: `25 April 2026 (rerun 2)`, `25 April 2026 (rerun 3)`, etc. Pick the lowest unused suffix. The original page is left untouched.
 4. Write content into today's page:
    a. **Top of page: `Ready for Execution` toggle** — a to-do-style checkbox block, unchecked by default, labeled clearly
    b. **Summary line** — "N items for your morning. X new assignments, Y reassignments, Z FYI."
@@ -79,17 +79,23 @@ Call `writers/notion.md` to:
    - AI Notes heading
    - Reference Context toggle at the bottom (labeled — skill's working memory)
 
-### Step 6 — Register execution and escalation
-
-Via `mcp__scheduled-tasks`:
-- Mode 2 (execution run) at the configured execution time on this same date
-- Escalation check at the configured escalation time
-
-If these are already daily recurring tasks, just confirm they're active. Don't re-register if nothing changed.
-
-### Step 7 — Update last-run timestamp
+### Step 6 — Update last-run timestamp
 
 Update the Preferences page's `last_morning_run` field to now.
+
+> **Note:** Mode 2 (execution) and the escalation check are pre-scheduled as separate Claude Routines. Mode 1 does NOT register them in-skill. The `scheduled-tasks` MCP is no longer in the allowlist — routines themselves are the scheduler.
+
+### Step 7 — Append run-log entry
+
+Call `writers/run-log.md` with the run summary:
+- Timestamp range (start → end of this Mode 1 fire)
+- Source counts per collector (Orbit / Gmail / Slack / Fathom signal counts)
+- Item count written to today's queue
+- Decisions list (key synthesis decisions, especially `Uncertain:` flags and assignee picks)
+- Connector status (which MCPs were healthy, which degraded, which failed)
+- Page title actually written (including any `(rerun N)` suffix)
+
+The writer creates a row in the Run Log database on the Notion parent and a linked decision-trace detail page. This is how a stateless routine fire leaves a trace for the next fire and for the PM's audit.
 
 ### Step 8 — Exit silently
 

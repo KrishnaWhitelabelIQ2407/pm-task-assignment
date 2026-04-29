@@ -1,17 +1,17 @@
-> **MANDATORY: `preflight.md` must run before any logic in this file. Do not call any tool, do not act on user input, until preflight has completed successfully. This includes scheduled-task triggers — preflight runs even when invoked by the scheduler.**
+> **MANDATORY: `preflight.md` must run before any logic in this file. Do not call any tool, do not act on user input, until preflight has completed successfully. This includes routine triggers — preflight runs even when invoked by a scheduled cloud routine.**
 
-> **Source allowlist (closed):** Orbit, Gmail, Slack, Fathom, Notion, scheduled-tasks. No other MCP, ever — including any that may seem relevant to a specific signal. The allowlist is enforced even under experimental scope or forced runs.
+> **Source allowlist (closed):** Orbit, Gmail, Slack, Fathom, Notion. No other MCP, ever — including any that may seem relevant to a specific signal. The allowlist is enforced even under experimental scope or forced runs.
 
 # Mode 2 — Execution Run
 
 ## When this runs
 
-- Scheduled: daily at the PM's configured execution time (default 10:45 AM IST).
+- Scheduled: daily at the PM's configured execution time (default 10:45 AM IST), fired by a Claude Routine.
 - Manual: `PM Task Assignment, run execution now`.
 
 ## What Mode 2 does
 
-Reads today's dated page in Notion. Checks the page-level `Ready for Execution` toggle at the top. If ON, executes every approved row and every row with a PM note. Writes outcomes back. Slacks the PM a completion summary. If OFF, fires escalation per `modes/mode-3-escalation.md`.
+Reads today's dated page in Notion. Checks the page-level `Ready for Execution` toggle at the top. If ON, executes every approved row and every row with a PM note. Writes outcomes back. Slacks the PM a completion summary. If OFF, fires escalation per `modes/mode-3-escalation.md` and exits — routines cannot wait for the PM to flip a toggle.
 
 ## End-to-end flow
 
@@ -27,7 +27,7 @@ Search the PM's Notion parent for a sub-page titled with today's date in "DD Mon
 
 The toggle is a checkbox block at the top of the dated page. Fetch the page content and find the to-do block labeled `Ready for Execution`.
 
-- **If unchecked (OFF):** route to `modes/mode-3-escalation.md` and stop.
+- **If unchecked (OFF):** fire escalation per `modes/mode-3-escalation.md` (Slack the configured backup with the unapproved-queue context), append a run-log entry via `writers/run-log.md` recording outcome `escalated` (with reason `ready_toggle_off`), and exit. Do NOT prompt the PM to flip the toggle. Do NOT wait. Routines cannot block on human input — if the PM never approved by execution time, the backup owns it.
 - **If checked (ON):** proceed.
 
 ### Step 4 — Read the Morning Queue database
@@ -118,7 +118,18 @@ Use `executors/slack.md` to send this DM.
 
 Set `last_execution_run` timestamp in Preferences.
 
-### Step 11 — Exit
+### Step 11 — Append run-log entry
+
+Call `writers/run-log.md` with the execution summary:
+- Timestamp range (start → end of this Mode 2 fire)
+- Per-row execution outcome list: row ID, action type, result (`executed` / `skipped` / `failed` / `held`), and — if the row had a PM note — the PM-note interpretation produced by `synthesis/note-interpreter.md`
+- Aggregate counts (executed / skipped / failed / held)
+- Connector status (which MCPs were healthy, degraded, failed)
+- Whether escalation was fired (no, in this branch — Step 3 handles that case before reaching here)
+
+The writer creates a row in the Run Log database on the Notion parent and a linked decision-trace detail page. This trace is what the post-mortem and the next fire's preflight read.
+
+### Step 12 — Exit
 
 Mode 2 is complete. No further action.
 
@@ -141,4 +152,4 @@ If there's no dated page for today, exit cleanly with a Slack to the PM: "No mor
 
 ## Special case — manual fire of Mode 2 when Ready is OFF
 
-If the PM manually fires Mode 2 via the command but Ready is OFF, don't auto-escalate. Instead, confirm: "Ready for Execution is still off. Flip it in Notion and I'll continue, or say 'cancel'." Wait for the PM's reply before doing anything.
+Manual fires follow the same deterministic path as routine fires: if Ready is OFF, Step 3 fires escalation and exits. No interactive confirmation, no waiting. The PM can flip the toggle and re-run the command — that next run will see Ready ON and proceed.

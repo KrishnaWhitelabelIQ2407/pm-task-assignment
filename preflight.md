@@ -10,13 +10,13 @@ Every entry into the skill:
 - Scheduled run: Mode 1, Mode 2, monthly archival
 - Any other invocation Claude perceives as related to PM Task Assignment
 
-## The 5-step preflight sequence
+## The 6-step preflight sequence
 
 ### Step 1 — Read config.md in full
 
 - Open `config.md` and read every section.
 - Confirm `DEFAULT_NOTION_PARENT_PAGE_ID` is set to a real Notion page ID (32-char hex string with or without dashes).
-- Confirm the source allowlist clause is loaded into context: only Orbit, Gmail, Slack, Fathom, Notion, scheduled-tasks. Nothing else.
+- Confirm the source allowlist clause is loaded into context: only Orbit, Gmail, Slack, Fathom, Notion. Nothing else.
 - Confirm the Preferences-must-be-respected clause is loaded.
 
 If `config.md` cannot be read or the page ID is missing/malformed, abort the run with a clear error message to the user: "config.md is missing or malformed. The skill cannot run. Please re-install or check the file."
@@ -31,10 +31,7 @@ If `config.md` cannot be read or the page ID is missing/malformed, abort the run
 
 - Search the parent's children for a sub-page titled exactly `Preferences`.
 - **If Preferences does NOT exist:**
-  - This is a first-run scenario.
-  - If the invoking command is `PM Task Assignment, run morning` or any other run-style command, **DO NOT proceed to mode logic.** Instead, route to `first-run-setup.md` and run the setup flow conversationally.
-  - If the invoking command is `change my preference: ...` or `update tone samples`, also route to `first-run-setup.md` first — the PM must complete setup before they can edit preferences.
-  - Setup creates the Preferences sub-page. Once setup is complete, return to the original command (or, if it was a scheduled run, simply log that setup was completed and exit — don't auto-fire the morning run on the same invocation).
+  - **ABORT the run.** Routines cannot run interactive setup. Slack the PM (identity from routine config): `Preferences page is missing on the Notion parent — setup is incomplete. Duplicate the template per setup-template.md and create the Preferences sub-page before next routine fire.` Then exit. Do NOT route to first-run-setup.md from a routine.
 
 - **If Preferences DOES exist:** continue to step 4.
 
@@ -54,9 +51,9 @@ If any **required** field is missing from a Preferences page that exists:
 - Slack the user themselves: "Your Preferences page is incomplete — [field] is missing. Please run `PM Task Assignment, change my preference: ...` to fix, or re-run first-run setup."
 - ABORT the current run.
 
-### Step 5 — Verify the 6 MCP connectors are responsive
+### Step 5 — Verify the 5 MCP connectors are responsive
 
-For each of the 6 allowlisted MCPs, run a lightweight ping (a read-only call that should succeed quickly):
+For each of the 5 allowlisted MCPs, run a lightweight ping (a read-only call that should succeed quickly):
 
 | MCP | Verification call |
 |---|---|
@@ -65,7 +62,8 @@ For each of the 6 allowlisted MCPs, run a lightweight ping (a read-only call tha
 | Slack | `slack_read_user_profile` |
 | Fathom | `list_meetings` with the smallest date range possible |
 | Notion | `notion-fetch` of the parent page (already done in step 2 — reuse) |
-| scheduled-tasks | `list_scheduled_tasks` |
+
+> **Retry policy applies.** Each verification ping above uses the retry-with-backoff policy in `connector-failure-notify.md` (4 attempts total, 2s/5s/15s backoff, retry only on transient errors). A single transient blip during preflight does NOT abort the run — only exhaustion of retries counts as "MCP down" for the decision logic below.
 
 For each MCP that fails:
 
@@ -74,11 +72,17 @@ For each MCP that fails:
 
 After the verification:
 
-- **If all 6 MCPs are responsive:** continue to the original mode/command logic. Preflight done.
+- **If all 5 MCPs are responsive:** continue to the original mode/command logic. Preflight done.
 - **If 1+ MCPs are down:** the failure-notify flow has been triggered. Decision per mode:
   - Mode 1 (collection): proceed with the available collectors. Note the missing source on the dated page summary. Don't abort.
   - Mode 2 (execution): if Notion or Orbit are down, ABORT — they're load-bearing. Other MCPs are non-blocking; proceed with what's available.
   - Mode 3 (escalation) and other commands: try to proceed with what's available; abort only if the specific MCP needed for THIS command is down.
+
+### Step 6 — Confirm Run Log database exists
+
+- Look for a `Run Log` database (or sub-page containing one) under the Notion parent. The schema is defined in `schemas/run-log-database.md`.
+- If missing, create it on this run per the schema. Every subsequent preflight just verifies existence.
+- The Run Log holds one row per routine fire, with a linked detail page per row holding the decision trace. See `writers/run-log.md`.
 
 ## What preflight does NOT do
 
@@ -94,7 +98,7 @@ When verifying the Slack and Gmail connectors, the skill confirms identity:
 - Slack profile email or username should match Preferences canonical email or one of the aliases.
 - Gmail authenticated account should match Preferences canonical email or one of the aliases.
 
-If neither matches, surface a warning to the user: "I notice the Slack/Gmail account I'm authenticated to doesn't match the identity stored in Preferences. Are you running this on the right machine?" Do not abort — the PM may have legitimate reasons (testing, multi-device). Just flag.
+If neither matches, ABORT the run. Slack the PM: `Identity mismatch — connector authed as [X] but Preferences expects [Y]. Routine cannot proceed.` In routines the connectors are wired at create-time; mismatch means the routine was created on the wrong account. Do not proceed silently.
 
 ## Loading verification
 
