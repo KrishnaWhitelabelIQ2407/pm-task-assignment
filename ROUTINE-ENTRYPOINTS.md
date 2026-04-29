@@ -12,12 +12,12 @@ Before creating any routine, the operator must have:
 
 - [ ] **PM's Notion parent page ID** — the 32-character UUID (or the share-link short ID) of the PM's parent page that holds Preferences + dated queue pages + Run Log database.
 - [ ] **PM's Preferences page URL** — the public Notion URL of the Preferences page on that parent.
-- [ ] **MCP authentication confirmed** for the PM's Claude account — all 5 MCPs connected and authenticated:
+- [ ] **MCP authentication confirmed** for the PM's Claude account — 4 MCPs connected and authenticated:
   - [ ] Orbit
   - [ ] Gmail
   - [ ] Slack
-  - [ ] Fathom
   - [ ] Notion
+  - [ ] ~~Fathom~~ — **NOT connected for this deployment.** All Fathom collection is disabled; the Fathom collector is skipped and logged as `connector_skipped: fathom_disabled` in every Run Log entry. Re-enable later by authenticating the MCP and removing the skip flag in each routine prompt.
 - [ ] **Repo URL** of the public GitHub repo holding the skill — referred to below as `<REPO_URL>` (raw-content base, e.g. `https://raw.githubusercontent.com/<org>/<repo>/main`).
 - [ ] **Routine TZ** — confirm the Routines runner's timezone. If it is not IST, convert the cron lines below from IST to the runner's TZ.
 
