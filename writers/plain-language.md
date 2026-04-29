@@ -114,6 +114,36 @@ When simplifying, identify terms that should be preserved:
 - Cross-reference the term against the table above
 - When in doubt, preserve — it's safer to keep a term than to simplify something the assignee expects to see
 
+## Emoji policy (applies to ALL output, not just team-facing)
+
+Use emojis sparingly and only when they aid scanning or carry mandated structural meaning. Decorative or emotional emojis are forbidden in every output the skill writes — Slack handoffs, Orbit task bodies, email drafts, Notion content, Run Log entries, completion summaries, escalation pings.
+
+### Allowed (professional / structural only)
+
+| Emoji | Where it's allowed | Why |
+|---|---|---|
+| 📌 🎯 🔗 ✅ 🔍 📎 | Orbit task body section headers — REQUIRED per `schemas/orbit-dq-standard.md` (DO · WHY · CONTEXT · DONE WHEN · SELF-QA · REFS) | Mandated structural markers |
+| ⚠️ | Warning callouts in Notion (connector failure notices, incident flags) | Visual scanning aid for high-priority alerts |
+| ✓ ✗ | Status indicators in Run Log detail pages (executed / failed) | Compact tabular shorthand |
+| → | Decision-trace arrows in Run Log (`subject → action → reason`) | Compact format marker |
+
+That is the complete allowlist. Anything not listed is banned.
+
+### Forbidden
+
+- Decorative: 🚀 🎉 🔥 ✨ 💯 🎊 🎈 🌟 ⭐ 💫
+- Emotional: 😊 😀 😎 🥳 ❤️ 💚 👍 🙌 🤝 🙏
+- Object/animal: 🐛 (use "bug"), 🚧 (use "blocked"), 📞 (use "call"), 💻, 📧, 🔧, etc.
+- Faces, hands, hearts, food, weather, transport — none of it.
+
+### Tone samples exception
+
+If the PM's tone samples (Preferences Q10) include an emoji, treat it as a *style observation, not a license*. Do not introduce emojis the PM doesn't use. Match the PM's frequency and only the specific emojis they use, capped at one per message. Never escalate beyond the sample's level.
+
+### When in doubt
+
+Default to no emoji. The skill writes for India delivery teams + AMs + clients — clarity beats expressiveness. A message that needs an emoji to land is usually a message that needs better wording.
+
 ## Special cases
 
 ### Short notes / titles
