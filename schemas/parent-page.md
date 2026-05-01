@@ -21,24 +21,32 @@ See also:
 │  [PM's execution run time] IST. Last run: [timestamp]."     │
 └─────────────────────────────────────────────────────────────┘
 
-📅 [Today's dated page] — created/refreshed daily by Mode 1
-📅 [Yesterday's dated page]
-📅 [Day before's dated page]
-...
-📅 [Older dated pages from this month]
+📂 [Current Year]                              ← e.g., "2026"
+   📂 [Current Month]                          ← e.g., "April"
+      📅 [Today's dated page]                   ← created/refreshed daily by Mode 1
+      📅 [Yesterday's dated page]
+      📅 [Day before's dated page]
+      ...
+      📅 [Older dated pages from this month]
+   📂 [Previous Month, same year]              ← e.g., "March"
+      📅 [dated pages]
+   📂 [Earlier months in the year]
+      📅 [dated pages]
 
-▸ [Month YYYY] (toggle, e.g., "April 2026")    ← created on 1st of next month
-   📅 [30 dated pages from that month]
+📂 [Previous Year]                              ← e.g., "2025"
+   📂 [December]
+      📅 [dated pages]
+   📂 [Earlier months]
+   ...
 
-▸ [Earlier Month YYYY] (toggle)
-   📅 [dated pages]
+... older years ...
 
-... older months ...
-
-📒 Run Log         ← NEW: routine-fire log + linked detail pages (auto-written)
-🚨 Incidents       ← NEW: append-only connector-failure log (Tier 4 fallback)
+📒 Run Log         ← routine-fire log + linked detail pages (auto-written)
+🚨 Incidents       ← append-only connector-failure log (Tier 4 fallback)
 ⚙️ Preferences (always last)
 ```
+
+**Hierarchy rule (non-negotiable):** every dated page lives at depth 3 under the parent — `Parent → Year → Month → Date`. There are no flat dated pages directly under the parent. The hierarchy is enforced from creation time, not lazily by archival.
 
 ## Static elements (always present)
 
@@ -71,7 +79,7 @@ The header is the only static, persistent block on the parent. Everything else u
 - **Sort:** the inline database default view sorts by `Started` descending (newest fire at the top).
 - **Detail pages:** each row in the inline database opens a child page whose schema is in `schemas/run-log-detail-page.md`. Detail pages are nested as children of THIS sub-page (not of the parent), which keeps the parent tidy — the parent only ever has the top-level children listed in the order rules below.
 - **Lifecycle:** created on first preflight if missing (per `preflight.md` Step 6). Once it exists, the writer (`writers/run-log.md`) appends a row on every fire.
-- **Position:** below all month toggles and immediately above `Incidents`.
+- **Position:** below all Year sub-pages and immediately above `Incidents`.
 
 ### 3. Incidents sub-page — between Run Log and Preferences
 
@@ -101,40 +109,64 @@ The `Preferences` sub-page is the very last child of the parent. Position is enf
 
 - `writers/notion.md` Step 1 of the Mode 1 flow: confirm Preferences is at the bottom; move it if not.
 - `preflight.md` Step 6: re-confirm Preferences is last after creating/positioning `Run Log` and `Incidents`.
-- Monthly archival: re-confirm position after moving prior-month pages into a toggle.
+- Monthly archival: re-confirm position as part of the structure-verification pass.
 
 ## Dynamic elements (created and managed by the skill)
 
-### Dated sub-pages — top of parent
+### Year sub-page — top of parent
 
-Each Mode 1 run creates a new dated sub-page titled with the current date in `DD Month YYYY` format (e.g., `25 April 2026`). New pages go at the TOP of the parent (above the previous day's).
+A Year page (e.g., `2026`) is the outermost dated container. The current Year page sits at the TOP of the parent, above earlier Year pages. Title is the bare 4-digit year — no prefix, no suffix.
+
+**Lifecycle:** created on demand by Mode 1 (or any writer that needs to place a dated page) when no Year page for the current year exists. Idempotent — never created twice.
+
+### Month sub-page — under Year
+
+A Month page (e.g., `April`) lives inside its parent Year page. Title is the spelled-out month name only (e.g., `April`, not `04`, `Apr`, or `April 2026`). The year context is implicit from the Year parent.
+
+**Order under the Year:** newest month at the top, descending. So inside `2026` you see `April → March → February → January` top-to-bottom.
+
+**Lifecycle:** created on demand when no Month page for the current month exists under the current Year page. Idempotent.
+
+### Dated sub-page — under Month
+
+Each Mode 1 run creates (or refreshes) a dated sub-page titled with the date in `DD Month YYYY` format (e.g., `25 April 2026`). The dated page is the child of the Month page, which is the child of the Year page, which is the child of the parent.
+
+New dated pages go at the TOP of their Month page's children (newest at top within the month).
 
 Layout of each dated page is defined in this file (parent-page.md) by reference, but the actual structure is in:
 - The dated page itself contains the inline `Morning Queue` database — schema in `schemas/morning-queue-database.md`
 - Each row in that database opens to a row detail page — schema in `schemas/row-detail-page.md`
 
-### Month toggles — middle of parent
+### Resolving "where does today's dated page go?"
 
-On the 1st of each month, `monthly-archival.md` runs and:
+On every Mode 1 fire (and any manual write that creates a dated page):
 
-1. Identifies all dated pages from the previous month
-2. Creates a toggle block titled `[Month YYYY]` (e.g., `April 2026`)
-3. Moves all those dated pages inside the toggle, preserving newest-on-top order within the toggle
-4. Positions the toggle below the current month's dated pages and above earlier-month toggles
-5. Re-confirms `Preferences` is still last
+1. Compute current `YYYY`, `Month` (spelled out), and `DD Month YYYY` title.
+2. Look for a child of the parent titled exactly `YYYY`. If absent, create it at the top of the parent.
+3. Inside that Year page, look for a child titled exactly `Month`. If absent, create it at the top of the Year page.
+4. Inside that Month page, create or refresh the `DD Month YYYY` page at the top.
+
+This sequence is the single source of truth for placement. Placement is correct from creation — the skill does NOT lazily flatten dated pages and archive them later. Monthly archival (`modes/monthly-archival.md`) only verifies nothing has drifted out of place.
 
 After several months of use, the parent looks like:
 
 ```
 HEADER CALLOUT
-📅 25 April 2026
-📅 24 April 2026
-📅 23 April 2026
-...
-📅 1 April 2026
-▸ March 2026
-▸ February 2026
-▸ January 2026
+📂 2026
+   📂 April
+      📅 25 April 2026
+      📅 24 April 2026
+      ...
+      📅 1 April 2026
+   📂 March
+      📅 31 March 2026
+      ...
+   📂 February
+   📂 January
+📂 2025
+   📂 December
+   📂 November
+   ...
 📒 Run Log
 🚨 Incidents
 ⚙️ Preferences
@@ -142,45 +174,48 @@ HEADER CALLOUT
 
 ## What the parent must NOT contain
 
-- No other content blocks at the parent level (no extra databases, no extra sub-pages beyond the seven enforced ones, no orphan blocks)
+- No other content blocks at the parent level (no extra databases, no orphan blocks)
 - No PM-added arbitrary content at the parent level (PMs can add content INSIDE Preferences or inside dated pages, but not at the parent level itself)
-- No orphan dated pages outside the toggle structure once their month has been archived
+- **No flat dated pages directly under the parent** — every dated page lives at `Year → Month → Date` depth
+- **No flat Month pages directly under the parent** — every Month page lives inside a Year page
+- **No `[Month YYYY]` toggle blocks at the parent level** (legacy structure superseded by Year/Month sub-pages)
 - No `Run Log` detail pages at the parent level — those must be nested under the `Run Log` sub-page
 
 The skill enforces this on every routine fire by:
 
 1. Verifying the header callout exists (creating or updating it if needed)
-2. Verifying today's dated page is at the top (creating or moving it if needed)
-3. Verifying `Run Log` exists and sits below the month toggles (creating it if missing — see `preflight.md` Step 6)
-4. Verifying `Incidents` exists and sits below `Run Log` (creating it if missing — see `preflight.md` Step 6)
-5. Verifying `Preferences` is at the bottom
-6. Logging (but not removing) any unexpected content at the parent level so the PM can investigate
+2. Verifying the current Year page exists at the top of the parent (creating it if missing)
+3. Verifying the current Month page exists inside the Year page (creating it if missing)
+4. Verifying today's dated page is at the top of the Month page (creating or moving it if needed)
+5. Verifying `Run Log` exists and sits below all Year pages (creating it if missing — see `preflight.md` Step 6)
+6. Verifying `Incidents` exists and sits below `Run Log` (creating it if missing — see `preflight.md` Step 6)
+7. Verifying `Preferences` is at the bottom
+8. Logging (but not removing) any unexpected content at the parent level so the PM can investigate
+9. Logging (but not auto-moving) any flat dated page found at the parent level — surfaces it in the run-log so the PM can confirm before relocation
 
 ## Visual hierarchy and order — strict rules
 
-The parent has **seven** ordered sections (was five before the routines refactor). The order of children is:
+The parent has these ordered top-level children:
 
-| #  | Section                                  | Created/refreshed by                              | Notes                                                  |
-| -- | ---------------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| 1  | Header callout                           | Mode 1 daily; preflight on every fire             | Always first.                                          |
-| 2  | Today's dated page                       | Mode 1 (or current run if missing)                | Newest at top.                                         |
-| 3  | This month's earlier dated pages         | Prior Mode 1 runs                                 | Newest first.                                          |
-| 4  | Last month's toggle (if exists)          | `monthly-archival.md` on the 1st                  | Below current month's dated pages.                     |
-| 5  | Earlier months' toggles                  | Prior monthly archivals                           | Newest first.                                          |
-| 6  | **`Run Log` sub-page (NEW)**             | `preflight.md` Step 6 (creates if missing)        | Below all month toggles, above `Incidents`.            |
-| 7  | **`Incidents` sub-page (NEW)**           | `preflight.md` Step 6 OR Tier 4 of failure path   | Between `Run Log` and `Preferences`.                   |
-| 8  | `Preferences`                            | PM-curated; position enforced                     | Always last.                                           |
+| #  | Section                          | Created/refreshed by                              | Notes                                                  |
+| -- | -------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| 1  | Header callout                   | Mode 1 daily; preflight on every fire             | Always first.                                          |
+| 2  | Current Year sub-page            | Mode 1 / writers/notion.md on demand              | Newest year at top. Contains Month sub-pages.          |
+| 3  | Earlier Year sub-pages           | Prior Mode 1 runs in those years                  | Descending year order.                                 |
+| 4  | `Run Log` sub-page               | `preflight.md` Step 6 (creates if missing)        | Below all Year sub-pages, above `Incidents`.           |
+| 5  | `Incidents` sub-page             | `preflight.md` Step 6 OR Tier 4 of failure path   | Between `Run Log` and `Preferences`.                   |
+| 6  | `Preferences`                    | PM-curated; position enforced                     | Always last.                                           |
 
-(The numbered list above is for reference; the seven *sections* are 1–8 minus the toggle/dated-page subdivisions, since 2–5 are all "dated content" variants. The hard count of distinct top-level *named* children is: header callout + today + older-this-month + month toggles + Run Log + Incidents + Preferences.)
+**Hierarchy nesting:** Year sub-pages contain Month sub-pages (descending), Month sub-pages contain Date sub-pages (descending). The parent itself only ever has the children listed in the table above — nothing else.
 
-Mode 1's Notion writer enforces this order. `preflight.md` Step 6 creates `Run Log` and `Incidents` in the correct slot if either is missing on a routine fire. Monthly archival re-establishes the full order after moving prior-month pages into a toggle. If a PM manually rearranges, the next routine fire silently re-sorts.
+Mode 1's Notion writer enforces this order. `preflight.md` Step 6 creates `Run Log` and `Incidents` in the correct slot if either is missing on a routine fire. Monthly archival verifies (rather than reshuffles) the structure since placement is correct from creation. If a PM manually rearranges, the next routine fire silently re-sorts top-level children; flat dated/month pages found at the parent level are flagged in the run-log for PM review rather than auto-moved.
 
 ## Why the structure is fixed
 
 - **Predictability:** every PM's parent looks the same. Onboarding new PMs is faster because the layout is recognizable.
 - **Skill reliability:** the skill always knows where to find things. It doesn't have to guess.
 - **Audit-friendly:** anyone (PM, leadership, fellow PM) can open a parent page and immediately understand what they're looking at.
-- **Archival is clean:** monthly toggles keep the page from growing unbounded.
+- **Archival is clean:** the Year/Month nesting keeps the parent's top-level child count bounded (one entry per active year), no matter how many dated pages accumulate.
 
 ## What this schema does NOT include
 

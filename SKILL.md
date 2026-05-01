@@ -187,7 +187,7 @@ Everything below this file provides the detailed behavior. Load the specific fil
 - `writers/notion.md` — Notion page and database creation. Enforces parent-page structure.
 - `writers/plain-language.md` — language-splitter rules.
 - `writers/source-citation.md` — citation formats.
-- `schemas/parent-page.md` — parent Notion page structure (header callout + dated pages + monthly toggles + Preferences last).
+- `schemas/parent-page.md` — parent Notion page structure (header callout + Year > Month > Date sub-page hierarchy + Run Log + Incidents + Preferences last).
 - `schemas/preferences-page.md` — Preferences layout.
 - `schemas/morning-queue-database.md` — inline database schema (9 columns, 4 Status options, 4 Source Systems options).
 - `schemas/row-detail-page.md` — row detail page layout (headings + reference toggle at bottom).

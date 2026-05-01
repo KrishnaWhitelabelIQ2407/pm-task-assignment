@@ -94,7 +94,7 @@ Omit the section for Mode 1 and Monthly Archival.
 Two links, one bullet each:
 
 - `↩ Run Log database` — link to the `Run Log` sub-page.
-- `↩ Today's queue page` (Mode 1 / Mode 2) **or** `↩ Archived month toggle` (Monthly Archival) — link to the page the run wrote to or moved.
+- `↩ Today's queue page` (Mode 1 / Mode 2) **or** `↩ Verified month container` (Monthly Archival) — link to the page the run wrote to or verified.
 
 ---
 

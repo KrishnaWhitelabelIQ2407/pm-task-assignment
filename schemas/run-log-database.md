@@ -59,7 +59,7 @@ Views beyond the default are nice-to-have; the writer creates only the default v
 ## Retention
 
 - The database **grows forever** in v1. At one row per routine fire and three fires per workday, that is approximately 750 rows per PM per year — well within Notion limits.
-- **Future enhancement (out of v1 scope, document only):** the monthly archival routine could also fold Run Log rows older than the previous month into a per-month toggle on the `Run Log` sub-page, mirroring the dated-queue archival pattern. Not implemented in v1. If implemented later, the toggle name format should match the queue archival format: `<Month YYYY>`.
+- **Future enhancement (out of v1 scope, document only):** the monthly archival routine could also nest Run Log rows older than the previous month under per-Year/per-Month sub-pages (e.g., `Run Log → 2026 → April`), mirroring the queue's `Year → Month → Date` hierarchy. Not implemented in v1.
 
 ---
 

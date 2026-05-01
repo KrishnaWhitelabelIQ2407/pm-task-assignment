@@ -78,11 +78,17 @@ After the verification:
   - Mode 2 (execution): if Notion or Orbit are down, ABORT — they're load-bearing. Other MCPs are non-blocking; proceed with what's available.
   - Mode 3 (escalation) and other commands: try to proceed with what's available; abort only if the specific MCP needed for THIS command is down.
 
-### Step 6 — Confirm Run Log database exists
+### Step 6 — Confirm parent-page operational sub-pages exist
 
-- Look for a `Run Log` database (or sub-page containing one) under the Notion parent. The schema is defined in `schemas/run-log-database.md`.
-- If missing, create it on this run per the schema. Every subsequent preflight just verifies existence.
-- The Run Log holds one row per routine fire, with a linked detail page per row holding the decision trace. See `writers/run-log.md`.
+Verify the persistent operational children of the Notion parent. Create any that are missing; create-or-confirm in this exact order so positions land correctly:
+
+1. **`Run Log` sub-page** — sub-page containing the Run Log inline database per `schemas/run-log-database.md`. Holds one row per routine fire, with a linked detail page per row holding the decision trace. See `writers/run-log.md`.
+2. **`Incidents` sub-page** — append-only inline database per `schemas/parent-page.md` § Incidents. Holds connector-failure rows from Tier 4 of `connector-failure-notify.md`.
+3. **`Preferences` sub-page** — must be the very last child of the parent. If it's not last, move it to the end.
+
+After creation/verification, the bottom three children of the parent (in order) must be: `Run Log`, `Incidents`, `Preferences`. Year sub-pages, when present, sit above all three.
+
+**Hierarchy note (do NOT enforce in preflight):** preflight does NOT auto-create the current Year or Month sub-page, and does NOT auto-relocate flat dated pages found at the parent level. That's `writers/notion.md`'s job at write time, plus drift surfacing during `modes/monthly-archival.md`. Preflight only confirms `Run Log`, `Incidents`, `Preferences` exist and are correctly positioned — it does not touch dated content.
 
 ## What preflight does NOT do
 

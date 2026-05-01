@@ -92,7 +92,7 @@ Exit when execution and the Run Log row + detail page are complete.
 
 ## Routine 3 — Monthly Archival
 
-Purpose: on the 1st of each month, move the previous month's dated queue pages on the Notion parent into a named-month toggle (e.g. `March 2026`).
+Purpose: on the 1st of each month, verify the `Parent → Year → Month → Date` hierarchy on the Notion parent page is intact for the previous month, surface any drift in the Run Log, and reorder Year/Month/Date children as needed.
 
 - **Cron (default):** `0 6 1 * *` (06:00 IST on the 1st of each month)
 - **Adjust for routine-runner TZ if not IST.**
@@ -112,10 +112,10 @@ PREFERENCES_PAGE_URL=<INJECTED_VALUE>
 
 Execute Monthly Archival end-to-end:
 - Run preflight against the parent page (Preferences not strictly required, but verify if reachable).
-- Identify all dated queue pages on the parent that belong to the previous calendar month.
-- Move them into a toggle block named "<Month YYYY>" (e.g. "March 2026") on the parent.
-- Create the toggle if it does not exist.
-- At the end, write a Run Log entry (writers/run-log.md) with archival summary.
+- Verify the previous-month container exists at Parent → <Year> → <Month> (e.g. 2026 → March).
+- Sweep for misplaced dated pages from the previous month at the parent level, under a Year (skipping Month), or in a wrong Month.
+- Reorder Year, Month, and Date children to descending where drifted (do not auto-move misplaced pages — surface them in the Run Log instead).
+- At the end, write a Run Log entry (writers/run-log.md) with archival summary including any drift items surfaced.
 
 Do not run Mode 1. Do not run Mode 2. Do not collect or execute anything.
 Exit when archival and the Run Log row + detail page are complete.

@@ -23,9 +23,8 @@ DEFAULT_NOTION_PARENT_URL    = <INJECTED_BY_ROUTINE_PROMPT>
 ### How the skill uses this
 
 - This is the **only** Notion page the skill reads from or writes to. Never any other Notion page.
-- Today's dated sub-page is created at the top of this parent on every Mode 1 run.
-- Older dated pages live below today's, in reverse chronological order, until they're archived into named-month toggles.
-- Month toggles (`April 2026`, `March 2026`, ...) sit below the current month's dated pages.
+- Dated sub-pages are placed at `Parent → <Year> → <Month> → <DD Month YYYY>` from creation. Today's dated page sits at the top of the current Month page; the current Month page sits at the top of the current Year page; the current Year page sits at the top of the parent.
+- Year sub-pages stack newest-first under the parent (`2026`, `2025`, `2024`, ...). Month sub-pages stack newest-first inside their Year (`April`, `March`, ...).
 - The `Preferences` sub-page is **always** the last child of this parent. Its position is enforced on every Mode 1 run and on monthly archival.
 - The structure of the parent and its children is defined and enforced per `schemas/parent-page.md`.
 

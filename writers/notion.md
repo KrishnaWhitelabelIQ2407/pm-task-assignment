@@ -6,7 +6,7 @@
 
 ## Purpose
 
-All Notion write operations. Creates dated sub-pages under the PM's parent, builds the inline Morning Queue database, populates row detail pages, updates status and outcome columns, ensures Preferences stays at the bottom, and handles the monthly archival move.
+All Notion write operations. Creates and reuses Year and Month container pages, places dated sub-pages inside `Parent → Year → Month → Date` hierarchy, builds the inline Morning Queue database, populates row detail pages, updates status and outcome columns, ensures Preferences stays at the bottom, and verifies the structure on monthly archival.
 
 ## Tools used
 
@@ -15,7 +15,7 @@ All Notion write operations. Creates dated sub-pages under the PM's parent, buil
 - `mcp__...notion.notion-create-database` — create inline databases
 - `mcp__...notion.notion-update-page` — update page content or properties
 - `mcp__...notion.notion-update-data-source` — update database schema if needed
-- `mcp__...notion.notion-move-pages` — for monthly archival
+- `mcp__...notion.notion-move-pages` — for monthly archival and structural drift correction
 
 ## Flow — writing today's page (Mode 1)
 
@@ -25,14 +25,28 @@ Called after the matcher has produced the ordered list of items.
 
 Fetch the parent page. Get the list of child blocks. If `Preferences` isn't the last child block, move it to the end.
 
-### Step 2 — Create today's dated sub-page
+### Step 2 — Resolve / create the Year container
+
+- Compute current `YYYY` (4-digit, e.g., `2026`).
+- Look for a child of the parent titled exactly `YYYY` (no prefix/suffix).
+- If absent: create it via `notion-create-pages` with parent = PM's parent page. Title = `YYYY`. Icon = 📂. Position at the TOP of the parent's children, above any earlier Year pages.
+- If present: reuse — never create a duplicate. If somehow more than one exists, log to run-log; use the topmost and skip duplicates (PM resolves manually).
+
+### Step 3 — Resolve / create the Month container
+
+- Compute current `Month` spelled out (e.g., `April`).
+- Look for a child of the Year page titled exactly `Month` (spelled out, no year suffix).
+- If absent: create it via `notion-create-pages` with parent = the Year page. Title = `Month`. Icon = 📂. Position at the TOP of the Year page's children, above earlier Month pages.
+- If present: reuse — same dup rule as Year.
+
+### Step 4 — Create today's dated sub-page
 
 - **Title:** today's date in "DD Month YYYY" format. Example: `25 April 2026`.
 - **Icon:** 📅
-- **Parent:** the PM's designated Notion parent page.
-- **Position:** at the TOP of the parent's children, above any older dated pages.
+- **Parent:** the Month page resolved in Step 3 (NOT the PM's parent page).
+- **Position:** at the TOP of the Month page's children, above older dated pages from the same month.
 
-### Step 3 — Write the page body
+### Step 5 — Write the page body
 
 Content order:
 
@@ -55,7 +69,7 @@ Content order:
    - Schema per `schemas/morning-queue-database.md` — 6 main columns visible: Summary, Status, Recommended Action, Recommended Assignee, PM Notes, Outcome.
    - Additional properties (Project, Source Systems, AI Notes) exist in the schema but are hidden from the default view (they appear only when a row is opened).
 
-### Step 4 — Populate each row
+### Step 6 — Populate each row
 
 For each item in the matcher's output array:
 
@@ -90,13 +104,14 @@ For each row Mode 2 executed:
 
 ## Flow — monthly archival (1st of month)
 
-See `modes/monthly-archival.md` for the orchestration. Notion Writer handles the actual moves via `notion-move-pages`.
+See `modes/monthly-archival.md` for the orchestration. Because every dated page is created inside `Parent → Year → Month → Date`, archival is **verification**, not migration. The Notion Writer's role on archival day:
 
-Steps:
-1. Identify all dated pages from the previous month under the parent
-2. Create a new toggle block under the parent labeled `[Month YYYY]` — e.g., `April 2026`
-3. Move each prior-month dated page to be a child of that toggle
-4. Ensure `Preferences` is still the last child of the parent after the moves
+1. Verify the previous-month container exists at `Parent → Year → Month` and contains all dated pages from that month.
+2. If any dated page from a prior month is found floating at the parent level OR directly under a Year page (without a Month parent) OR misfiled in the wrong Month, log it in the run-log entry but DO NOT auto-move (placement drift implies manual edits — surface for PM review).
+3. Verify Year ordering: newest Year on top, descending. Reorder via `notion-move-pages` if drifted.
+4. Verify Month ordering inside each Year: newest Month on top. Reorder if drifted.
+5. Ensure `Preferences` is still the last child of the parent.
+6. Ensure `Run Log` and `Incidents` sit immediately above `Preferences`, in that order.
 
 ## Flow — Preferences page updates
 
@@ -113,7 +128,9 @@ Use `notion-update-page` with `command: update_content` and targeted find-and-re
 
 ## Idempotency
 
-- Don't create a dated page if one already exists for today. Confirm with the PM first if they're manually re-firing Mode 1.
+- Don't create a duplicate Year page. Match by exact 4-digit title under the parent.
+- Don't create a duplicate Month page. Match by exact spelled-out month name under the relevant Year page.
+- Don't create a dated page if one already exists for today (under the resolved Month). Confirm with the PM first if they're manually re-firing Mode 1.
 - Don't create a duplicate Preferences page. If one exists and first-run setup re-fires accidentally, route to first-run-setup.md's early-exit logic.
 - Don't duplicate Morning Queue databases within a dated page. Each dated page has exactly one.
 
@@ -124,7 +141,8 @@ Use `notion-update-page` with `command: update_content` and targeted find-and-re
 | Page creation fails | Retry once. If fails, abort Mode 1 with Slack to PM: `Couldn't write today's morning queue. [error]` |
 | Database creation fails | Retry once. If fails, abort. |
 | Row creation fails for a single item | Log in AI Notes on the summary block, continue with remaining rows |
-| `notion-move-pages` fails during archival | Log and continue. Missing pages can be moved manually later. |
+| `notion-move-pages` fails during archival reorder | Log and continue. Order drift can be corrected on the next fire. |
+| Year or Month container creation fails | Retry once. If still fails, abort Mode 1 with Slack to PM: `Couldn't create the Year/Month container. [error]` — do NOT fall back to creating the dated page flat under the parent. |
 | Preferences page is missing | Route to `first-run-setup.md` |
 
 ## Performance
