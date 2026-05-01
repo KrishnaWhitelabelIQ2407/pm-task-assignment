@@ -88,7 +88,7 @@ The header is the only static, persistent block on the parent. Everything else u
 
   | Column              | Type                       | Notes                                                                                       |
   | ------------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
-  | `Timestamp`         | Date (with time)           | When the incident occurred (ISO, local TZ).                                                 |
+  | `Timestamp`         | Date (with time)           | When the incident occurred (ISO 8601, Asia/Kolkata IST with `+05:30` offset).               |
   | `Mode`              | Select                     | One of: `Mode 1`, `Mode 2`, `Monthly Archival`.                                             |
   | `MCP`               | Select                     | One of: `Orbit`, `Gmail`, `Slack`, `Fathom`, `Notion`.                                      |
   | `Step`              | Text                       | Which step in the mode failed (free text, e.g., "fetch overdue tasks").                     |
